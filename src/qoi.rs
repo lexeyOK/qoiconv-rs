@@ -1,4 +1,3 @@
-
 use std::io::prelude::*;
 
 ///  The qoi_desc describes the input pixel data.
@@ -107,13 +106,13 @@ pub fn qoi_encode(
             run += 1;
             if run == 62 || pixel_pos == pixel_end {
                 bytes.write_all(&[QOI_OP_RUN | (run - 1)])?;
-        
+
                 run = 0;
             }
         } else {
             if run > 0 {
                 bytes.write_all(&[QOI_OP_RUN | (run - 1)])?;
-        
+
                 run = 0;
                 break;
             }
@@ -122,7 +121,6 @@ pub fn qoi_encode(
 
             if index[index_pos] == pixel {
                 bytes.write_all(&[QOI_OP_INDEX | index_pos as u8])?;
-        
             } else {
                 index[index_pos] = pixel;
 
@@ -139,7 +137,6 @@ pub fn qoi_encode(
                             | ((dr + 2) as u8) << 4
                             | ((dg + 2) as u8) << 2
                             | ((db + 2) as u8)])?;
-                
                     } else if (-8..=7).contains(&dg_dr)
                         && (-8..=7).contains(&dg_db)
                         && (-32..=31).contains(&dg)
@@ -148,14 +145,11 @@ pub fn qoi_encode(
                             QOI_OP_LUMA | ((dg + 32) as u8),
                             ((dg_dr + 8) as u8) << 4 | ((dg_db + 8) as u8),
                         ])?;
-                
                     } else {
                         bytes.write_all(&[QOI_OP_RGB, pixel.r, pixel.g, pixel.b])?;
-                
                     }
                 } else {
                     bytes.write_all(&[QOI_OP_RGBA, pixel.r, pixel.g, pixel.b, pixel.a])?;
-            
                 }
             }
         }
@@ -294,25 +288,22 @@ pub fn qoi_decode(
 }
 
 #[cfg(tests)]
-mod tests
-{
+mod tests {
     use std::io::Cursor;
     use supper::*;
-#[test]
-fn inverse_application_test() {
-    let desc = QoiDescriptor {
-        width: 3,
-        height: 1,
-        channels: ChanelMode::Rgb,
-        colorspace: Colorspace::Linear,
-    };
-    let pixels = [12, 12, 23, 11, 11, 22, 34, 23, 23];
-    let bytes = qoi_encode(
-        &pixels,
-        desc.clone()
-    )
-    .unwrap();
-    assert_eq!(qoi_decode(Cursor::new(bytes), None).unwrap(), (Vec::from(pixels),desc));
-}
-
+    #[test]
+    fn inverse_application_test() {
+        let desc = QoiDescriptor {
+            width: 3,
+            height: 1,
+            channels: ChanelMode::Rgb,
+            colorspace: Colorspace::Linear,
+        };
+        let pixels = [12, 12, 23, 11, 11, 22, 34, 23, 23];
+        let bytes = qoi_encode(&pixels, desc.clone()).unwrap();
+        assert_eq!(
+            qoi_decode(Cursor::new(bytes), None).unwrap(),
+            (Vec::from(pixels), desc)
+        );
+    }
 }
