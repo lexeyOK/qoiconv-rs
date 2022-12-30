@@ -87,21 +87,30 @@ pub fn qoi_encode(
     bytes.write_all(&(desc.width as u32).to_be_bytes())?;
     bytes.write_all(&(desc.height as u32).to_be_bytes())?;
     bytes.write_all(&[desc.channels as u8, desc.colorspace as u8])?;
-
-    let mut index = [QoiRGBA::new(0, 0, 0, 255); 64];
-
+    
     let mut pixel_previous = QoiRGBA::new(0, 0, 0, 255);
-    let mut pixel = pixel_previous;
+    
+    let mut index = [QoiRGBA::new(0, 0, 0, 0); 64];
+
     let pixel_end = pixels.len() - desc.channels as usize;
+
     let mut run = 0;
     for pixel_pos in (0..pixels.len()).step_by(desc.channels as usize) {
-        pixel.r = pixels[pixel_pos];
-        pixel.g = pixels[pixel_pos + 1];
-        pixel.b = pixels[pixel_pos + 2];
-
-        if desc.channels == ChanelMode::Rgba {
-            pixel.a = pixels[pixel_pos + 3];
-        }
+        let pixel = if desc.channels == ChanelMode::Rgba {
+            QoiRGBA::new(
+                pixels[pixel_pos],
+                pixels[pixel_pos + 1],
+                pixels[pixel_pos + 2],
+                pixels[pixel_pos + 3],
+            )
+        } else {
+            QoiRGBA::new(
+                pixels[pixel_pos],
+                pixels[pixel_pos + 1],
+                pixels[pixel_pos +2],
+                255,
+            )
+        };
         if pixel == pixel_previous {
             run += 1;
             if run == 62 || pixel_pos == pixel_end {
@@ -114,7 +123,6 @@ pub fn qoi_encode(
                 bytes.write_all(&[QOI_OP_RUN | (run - 1)])?;
 
                 run = 0;
-                break;
             }
 
             let index_pos = color_hash(pixel) % 64;
@@ -125,12 +133,12 @@ pub fn qoi_encode(
                 index[index_pos] = pixel;
 
                 if pixel.a == pixel_previous.a {
-                    let dr = pixel.r as i8 - pixel_previous.r as i8;
-                    let dg = pixel.g as i8 - pixel_previous.g as i8;
-                    let db = pixel.b as i8 - pixel_previous.b as i8;
+                    let dr = pixel.r.wrapping_sub(pixel_previous.r) as i8;
+                    let dg = pixel.g.wrapping_sub(pixel_previous.g) as i8;
+                    let db = pixel.b.wrapping_sub(pixel_previous.b) as i8;
 
-                    let dg_dr = dr - dg;
-                    let dg_db = db - dg;
+                    let dg_dr = dr.wrapping_sub(dg);
+                    let dg_db = db.wrapping_sub(dg);
 
                     if (-2..=1).contains(&dr) && (-2..=1).contains(&dg) && (-2..=1).contains(&db) {
                         bytes.write_all(&[QOI_OP_DIFF
@@ -153,6 +161,7 @@ pub fn qoi_encode(
                 }
             }
         }
+
         pixel_previous = pixel;
     }
     bytes.write_all(&QOI_PADDING)?;
@@ -230,8 +239,8 @@ pub fn qoi_decode(
     let pixel_len = desc.width * desc.height * (channels as usize);
     let mut pixels = Vec::with_capacity(pixel_len);
 
-    let mut index = [QoiRGBA::new(0, 0, 0, 255); 64];
-    let mut pixel = QoiRGBA::new(0, 0, 0, 255);
+    let mut index = [QoiRGBA::new(0, 0, 0, 0); 64];
+    let mut pixel = QoiRGBA::new(0, 0, 0, 0);
 
     let mut run = 0;
     for _ in (0..pixel_len).step_by(channels as usize) {
@@ -287,23 +296,56 @@ pub fn qoi_decode(
     Ok((pixels, desc))
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
+    use super::*;
+    use quickcheck::quickcheck;
     use std::io::Cursor;
-    use supper::*;
+    quickcheck! {
+        fn inverse_application(xs: Vec<u8>) ->bool{
+            if xs.len()!=100{
+                return true;
+            }
+            let desc = QoiDescriptor{
+                width: 10,
+                height: 10,
+                channels: ChanelMode::Rgb,
+                colorspace: Colorspace::Linear
+            };
+            let bytes = qoi_encode(&xs,desc).unwrap();
+            let (pixels, _) = qoi_decode(Cursor::new(bytes),None).unwrap();
+
+            xs == pixels
+        }
+    }
     #[test]
     fn inverse_application_test() {
+        let pixels = [1, 0, 0, 0, 0, 0];
         let desc = QoiDescriptor {
-            width: 3,
+            width: pixels.len() / 3,
             height: 1,
             channels: ChanelMode::Rgb,
             colorspace: Colorspace::Linear,
         };
-        let pixels = [12, 12, 23, 11, 11, 22, 34, 23, 23];
         let bytes = qoi_encode(&pixels, desc.clone()).unwrap();
-        assert_eq!(
-            qoi_decode(Cursor::new(bytes), None).unwrap(),
-            (Vec::from(pixels), desc)
-        );
+        dbg!(&bytes);
+        let (pixels_, _desc) = qoi_decode(Cursor::new(bytes), None).unwrap();
+        dbg!(&pixels_);
+        assert_eq!(pixels_, pixels);
+    }
+    #[test]
+    fn first_pixel_zero() {
+        let pixels = [0,0,0,0, 0, 1];
+        let desc = QoiDescriptor {
+            width: pixels.len() / 3,
+            height: 1,
+            channels: ChanelMode::Rgb,
+            colorspace: Colorspace::Linear,
+        };
+        let bytes = qoi_encode(&pixels, desc.clone()).unwrap();
+        dbg!(&bytes);
+        let (pixels_decoded, _desc) = qoi_decode(Cursor::new(bytes), None).unwrap();
+        dbg!(&pixels_decoded);
+        assert_eq!(pixels_decoded, pixels);
     }
 }
