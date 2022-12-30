@@ -1,23 +1,21 @@
-use std::{fs::File, io::Write};
+use std::fs::File;
 mod qoi;
-use qoi::{qoi_encode, ChanelMode, Colorspace, QoiDescriptor};
+use image::{RgbImage, RgbaImage};
+use qoi::*;
 
 fn main() {
-    let image = image::open("qoi_test_images/dice.png").unwrap();
+    let bytes = File::open("qoi_test_images/wikipedia_008.qoi").unwrap();
+    let (data, desc) = qoi_decode(bytes, None).unwrap();
 
-    let pixels = image.as_bytes();
-
-    let mut data = qoi_encode(
-        pixels,
-        QoiDescriptor {
-            width: image.width() as usize,
-            height: image.height() as usize,
-            channels: ChanelMode::Rgba,
-            colorspace: Colorspace::Linear,
-        },
-    )
-    .unwrap();
-
-    let mut image = File::create("dice.qoi").unwrap();
-    image.write_all(&mut data).unwrap();
+    println!("{desc:?}");
+    match desc.channels {
+        ChanelMode::Rgb => RgbImage::from_raw(desc.width as u32, desc.height as u32, data)
+            .unwrap()
+            .save("wikipedia_008.png")
+            .unwrap(),
+        ChanelMode::Rgba => RgbaImage::from_raw(desc.width as u32, desc.height as u32, data)
+            .unwrap()
+            .save("wikipedia_008.png")
+            .unwrap(),
+    };
 }
