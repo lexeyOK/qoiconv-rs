@@ -1,5 +1,5 @@
 [package]
-name = "qoi_test"
+name = "qoi-test"
 version = "0.1.0"
 edition = "2021"
 
