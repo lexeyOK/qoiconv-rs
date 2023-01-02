@@ -1,5 +1,5 @@
 # qoi-test
-Attempt to port [`qoi.h`](qoi-image.org) to rust-lang.
+Attempt to port [`qoi.h`](https://qoiformat.org/) to rust-lang.
 ## Usage
 Copy qoi.rs to your source file and add it as a mod.
 
