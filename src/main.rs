@@ -6,7 +6,7 @@ use qoi::*;
 
 fn main() {
     let file = File::open("wikipedia_008.qoi").unwrap();
-    let mut bytes = BufReader::new(file);
+    let bytes = BufReader::new(file);
     let (data, desc) = qoi_decode(bytes, None).unwrap();
 
     println!("{desc:?}");
