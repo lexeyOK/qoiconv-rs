@@ -44,23 +44,21 @@ fn main() {
     f.write_all(bytes.as_slice()).unwrap();
 }
 ```
-## testing, fuzzing, benches, profile
+## Testing, fuzzing, benches, profile
 Use cargo to test and fuzz the program (you'll need to install cargo-fuzz):
 ```bash
+cargo test
 # install cargo-fuzz with `cargo install cargo-fuzz`
 cargo fuzz run qoi-test-pixels
-cargo test
 ```
 To run benches against c test program run:
-```bash
-cp qoi_test_images/wikipedia_008.qoi test/
-# compile c program with gcc
-gcc cc/qoi-test.c -std=c99 -O3 -o test/qoi-test-c
-# compile rust program with cargo
-cargo b -r && mv target/release/qoi-test test/qoi-test-rust 
-# run hyperfine or other benchmark tool
-hyperfine ./qoi-test-c ./qoi-test-rust
-# run cargo-flamegraph 
-CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --root
-```
+> TODO implement new benchmark to compare against c 
+
 This implementation is 2x slower then c implementation probably due to smaller buffer size of `BufReader`.
+## Usage of qoiconv-rs
+```bash
+# convert form image to qoi
+qoiconv-rs -i input.png -o output.qoi
+# convert from qoi to image 
+qoiconv-rs -i input.qoi -o output.png
+```

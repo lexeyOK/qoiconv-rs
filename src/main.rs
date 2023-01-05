@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufReader, Write};
 use std::path::PathBuf;
 mod qoi;
 use clap::{arg, command, Parser};
@@ -34,7 +34,7 @@ fn main() {
         Some(_) => {
             let image = image::open(cli.input).expect("your supplied image is not correct");
             let pixels = image.to_rgba8();
-            let file = File::create(cli.output).expect("cannot create file");
+            let mut file = File::create(cli.output).expect("cannot create file");
             let bytes = qoi_encode(
                 &pixels,
                 QoiDescriptor {
@@ -45,8 +45,7 @@ fn main() {
                 },
             )
             .expect("unable to decode image");
-            let mut buf = BufWriter::new(file);
-            buf.write_all(&bytes).expect("unable to write to file");
+            file.write_all(&bytes).expect("unable to write to file");
         }
         None => panic!("no extension"),
     }
