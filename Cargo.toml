@@ -1,8 +1,9 @@
 [package]
 name = "qoiconv-rs"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-
+description = "Convert between different image formats and qoi format."
+authors = ["lexx"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
