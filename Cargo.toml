@@ -1,6 +1,6 @@
 [package]
 name = "qoiconv-rs"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Convert between different image formats and qoi format."
 authors = ["lexx"]
@@ -9,3 +9,5 @@ authors = ["lexx"]
 [dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
 image = "0.24.5"
+indicatif = {version = "0.17.2", features = ["rayon"]}
+rayon = "1.6.1"
