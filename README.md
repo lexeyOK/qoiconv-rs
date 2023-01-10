@@ -38,7 +38,7 @@ fn main() {
         colorspace: Colorspace::Linear,
     };
 
-    let bytes = qoi_encode(&pixels, desc).unwrap();
+    let bytes = qoi_encode(&pixels, &desc).unwrap();
 
     let mut f = File::create("example.qoi").unwrap();
     f.write_all(bytes.as_slice()).unwrap();
