@@ -1,7 +1,60 @@
-use std::io::prelude::*;
+//! # QOI encoder and decoder
+//!
+//! This crate contains impelementations of a [`qoi_encode`](fn.qoi_encode.html)
+//! and [`qoi_decode`](fn.qoi_decode.html) funcions
+//! similar to [`qoi.h`](https://github.com/phoboslab/qoi) by Dominic Szablewski.
+//!
+//! ## Decode Image
+//!
+//! [`qoi_decode`](fn.qoi_decode.html) takes `impl Read` which must provide bytes
+//! of qoi file and optionaly [`ChanalMode`](struct.ChanalMode.html).
+//! It will return `Vec<u8>` containing flat pixels in RGBA or RGB order and
+//! [`QoiDescriptor`](struct.QoiDescriptor) with descriptoin of an image,
+//! or `Box<dyn Error>`. You sould use `BufReader` to achive better performance.
+//!
+//! ### Example of decoding pixels from `.qoi` file:
 
-///  The qoi_desc describes the input pixel data.
-#[derive(Clone, PartialEq, Debug)]
+//! ```
+//! use std::fs::File;
+//! use std::io::BufReader;
+//! use qoi::*;
+//!
+//! // load file and get bytes (use `BufReader` to speed up reads)
+//! let file = File::open("wikipedia_008.qoi").unwrap();
+//! let mut bytes = BufReader::new(file);
+//! // get pixels and descriptor
+//! let (data, desc) = qoi_decode(bytes, None).unwrap();
+//! ```
+//!
+//! ## Encode Image
+//! [`qoi_encode`](fn.qoi_encode.html) funcitoin takes `&[u8]` of flat pixel value
+//! RGB or RGBA, and [`QoiDescriptor`](struct.QoiDescriptor.html).
+//! Qoi format has hard limit on pixel count so your image must contain less than
+//! `QOI_PIXELS_MAX` pixels otherwise this funciton will panic at assertion.
+//!
+//! ### Example of encoding pixels into `.qoi` file:
+//! ```
+//! use std::fs::File;
+//! use std::io::Write;
+//! use qoi::*;
+//!
+//! // get pixels and make valid descriptor
+//! // pixels must be laid out in order RGB(A)
+//! let pixels = [255, 0, 0, 15, 1, 255, 255, 255, 191, 255, 0, 0, 15, 1, 74];
+//! let desc = QoiDescriptor {
+//!     width: pixels.len() / 3,
+//!     height: 1,
+//!     channels: ChanelMode::Rgb,
+//!     colorspace: Colorspace::Linear,
+//! };
+//! let bytes = qoi_encode(&pixels, &desc).unwrap();
+//! let mut f = File::create("example.qoi").unwrap();
+//! f.write_all(bytes.as_slice()).unwrap();
+//! ```
+use std::io::{Read, Write};
+
+///  Describes the input pixel data.
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct QoiDescriptor {
     pub width: usize,
     pub height: usize,
@@ -9,19 +62,20 @@ pub struct QoiDescriptor {
     pub colorspace: Colorspace,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+/// Rgba of Rgb mode.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ChanelMode {
     Rgb = 3,
     Rgba = 4,
 }
-
-#[derive(PartialEq, Clone, Copy, Debug)]
+/// Colorspace used in image. (Will not affect current implementation.)
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Colorspace {
     Srgb = 0,
     Linear = 1,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 struct QoiRGBA {
     r: u8,
     g: u8,
@@ -29,42 +83,53 @@ struct QoiRGBA {
     a: u8,
 }
 impl QoiRGBA {
+    /// Create new RGBA pixel form individual values.
     fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
     }
 }
 
-const QOI_OP_INDEX: u8 = 0x00; /* 00xxxxxx */
-const QOI_OP_DIFF: u8 = 0x40; /* 01xxxxxx */
-const QOI_OP_LUMA: u8 = 0x80; /* 10xxxxxx */
-const QOI_OP_RUN: u8 = 0xc0; /* 11xxxxxx */
-const QOI_OP_RGB: u8 = 0xfe; /* 11111110 */
-const QOI_OP_RGBA: u8 = 0xff; /* 11111111 */
+/// Encodes index in pixel buffer 00xxxxxx
+const QOI_OP_INDEX: u8 = 0x00;
+/// Encodes delta of pixels 01xxxxxx
+const QOI_OP_DIFF: u8 = 0x40;
+/// Encodes luma encoding of pixels 10xxxxxx
+const QOI_OP_LUMA: u8 = 0x80;
+/// Encodes run encding of pixels 11xxxxxx
+const QOI_OP_RUN: u8 = 0xc0;
+/// Encodes RGB pixel op 11111110
+const QOI_OP_RGB: u8 = 0xfe;
+/// Encdoes RGBA pixel op 11111111
+const QOI_OP_RGBA: u8 = 0xff;
+/// Select only frst two bits 11000000
+const QOI_MASK: u8 = 0xc0;
 
-const QOI_MASK: u8 = 0xc0; /* 11000000 */
-
+/// Hash of Rgba pixel.
 const fn color_hash(pixel: QoiRGBA) -> usize {
     let QoiRGBA { r, g, b, a } = pixel;
     r as usize * 3 + g as usize * 5 + b as usize * 7 + a as usize * 11
 }
-
+/// Size of header.
 const QOI_HEADER_SIZE: usize = 14;
 
-/* 2GB is the max file size that this implementation can safely handle. We guard
-against anything larger than that, assuming the worst case with 5 bytes per
-pixel, rounded down to a nice clean value. 400 million pixels ought to be
-enough for anybody. */
+/// # Maximum safe pixel count.
+/// 2GB is the max file size that this implementation can safely handle. We guard
+/// against anything larger than that, assuming the worst case with 5 bytes per
+/// pixel, rounded down to a nice clean value. 400 million pixels ought to be
+/// enough for anybody.
 const QOI_PIXELS_MAX: usize = 400_000_000;
-
+/// Size of qoi's padding.
 const QOI_PADDING_SIZE: usize = 8;
+/// Padding for qoi file.
 const QOI_PADDING: [u8; QOI_PADDING_SIZE] = [0, 0, 0, 0, 0, 0, 0, 1];
 
 /// Encode raw RGB or RGBA pixels into a QOI image in memory.
 pub fn qoi_encode(
     pixels: &[u8],
-    desc: QoiDescriptor,
+    desc: &QoiDescriptor,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    //int i, p, run;
+    // may be potantial error with overflowX
+    // also sould not panic probably, instead return Err.
     assert_eq!(
         pixels.len(),
         desc.width * desc.height * (desc.channels as usize)
@@ -96,32 +161,29 @@ pub fn qoi_encode(
 
     let mut run = 0;
     for pixel_pos in (0..pixels.len()).step_by(desc.channels as usize) {
-        let pixel = if desc.channels == ChanelMode::Rgba {
-            QoiRGBA::new(
+        let pixel = match desc.channels {
+            ChanelMode::Rgba => QoiRGBA::new(
                 pixels[pixel_pos],
                 pixels[pixel_pos + 1],
                 pixels[pixel_pos + 2],
                 pixels[pixel_pos + 3],
-            )
-        } else {
-            QoiRGBA::new(
+            ),
+            ChanelMode::Rgb => QoiRGBA::new(
                 pixels[pixel_pos],
                 pixels[pixel_pos + 1],
                 pixels[pixel_pos + 2],
                 255,
-            )
+            ),
         };
         if pixel == pixel_previous {
             run += 1;
             if run == 62 || pixel_pos == pixel_end {
                 bytes.write_all(&[QOI_OP_RUN | (run - 1)])?;
-
                 run = 0;
             }
         } else {
             if run > 0 {
                 bytes.write_all(&[QOI_OP_RUN | (run - 1)])?;
-
                 run = 0;
             }
 
@@ -161,7 +223,6 @@ pub fn qoi_encode(
                 }
             }
         }
-
         pixel_previous = pixel;
     }
     bytes.write_all(&QOI_PADDING)?;
@@ -169,7 +230,8 @@ pub fn qoi_encode(
     Ok(bytes)
 }
 
-/// Decode a QOI image from memory.
+/// # Decode a QOI image from `impl Read`.
+/// Will take `ChanelMode` form desciptor of file if not provided, owerwise will use provided.
 pub fn qoi_decode(
     mut data: impl Read,
     channels: Option<ChanelMode>,
@@ -247,38 +309,39 @@ pub fn qoi_decode(
         if run > 0 {
             run -= 1;
         } else {
-            let b1 = read_u8!();
+            let op_byte = read_u8!();
 
-            if b1 == QOI_OP_RGB {
+            if op_byte == QOI_OP_RGB {
                 pixel.r = read_u8!();
                 pixel.g = read_u8!();
                 pixel.b = read_u8!();
-            } else if b1 == QOI_OP_RGBA {
+            } else if op_byte == QOI_OP_RGBA {
                 pixel.r = read_u8!();
                 pixel.g = read_u8!();
                 pixel.b = read_u8!();
                 pixel.a = read_u8!();
-            } else if (b1 & QOI_MASK) == QOI_OP_INDEX {
-                pixel = index[b1 as usize];
-            } else if (b1 & QOI_MASK) == QOI_OP_DIFF {
-                let dr = ((b1 >> 4) & 0x03) as i8 - 2;
-                let dg = ((b1 >> 2) & 0x03) as i8 - 2;
-                let db = (b1 & 0x03) as i8 - 2;
-                pixel.r = pixel.r.wrapping_add_signed(dr);
-                pixel.g = pixel.g.wrapping_add_signed(dg);
-                pixel.b = pixel.b.wrapping_add_signed(db);
-            } else if (b1 & QOI_MASK) == QOI_OP_LUMA {
-                let b2 = read_u8!();
-
-                let dg = (b1 & 0x3f) as i8 - 32;
-                let dr = dg - 8 + ((b2 >> 4) & 0x0f) as i8;
-                let db = dg - 8 + (b2 & 0x0f) as i8;
+            } else if (op_byte & QOI_MASK) == QOI_OP_INDEX {
+                pixel = index[op_byte as usize];
+            } else if (op_byte & QOI_MASK) == QOI_OP_DIFF {
+                let dr = ((op_byte >> 4) & 0x03) as i8 - 2;
+                let dg = ((op_byte >> 2) & 0x03) as i8 - 2;
+                let db = (op_byte & 0x03) as i8 - 2;
 
                 pixel.r = pixel.r.wrapping_add_signed(dr);
                 pixel.g = pixel.g.wrapping_add_signed(dg);
                 pixel.b = pixel.b.wrapping_add_signed(db);
-            } else if (b1 & QOI_MASK) == QOI_OP_RUN {
-                run = b1 & 0x3f;
+            } else if (op_byte & QOI_MASK) == QOI_OP_LUMA {
+                let delta_byte = read_u8!();
+
+                let dg = (op_byte & 0x3f) as i8 - 32;
+                let dr = dg - 8 + ((delta_byte >> 4) & 0x0f) as i8;
+                let db = dg - 8 + (delta_byte & 0x0f) as i8;
+
+                pixel.r = pixel.r.wrapping_add_signed(dr);
+                pixel.g = pixel.g.wrapping_add_signed(dg);
+                pixel.b = pixel.b.wrapping_add_signed(db);
+            } else if (op_byte & QOI_MASK) == QOI_OP_RUN {
+                run = op_byte & 0x3f;
             }
 
             index[color_hash(pixel) % 64] = pixel;
@@ -311,7 +374,7 @@ mod tests {
             channels: ChanelMode::Rgb,
             colorspace: Colorspace::Linear,
         };
-        let bytes = qoi_encode(&pixels, desc.clone()).unwrap();
+        let bytes = qoi_encode(&pixels, &desc).unwrap();
         dbg!(&bytes);
         let (pixels_, _desc) = qoi_decode(Cursor::new(bytes), None).unwrap();
         dbg!(&pixels_);
@@ -328,7 +391,7 @@ mod tests {
             channels: ChanelMode::Rgb,
             colorspace: Colorspace::Linear,
         };
-        let bytes = qoi_encode(&pixels, desc.clone()).unwrap();
+        let bytes = qoi_encode(&pixels, &desc).unwrap();
         dbg!(&bytes);
         let (pixels_, _desc) = qoi_decode(Cursor::new(bytes), None).unwrap();
         dbg!(&pixels_);
@@ -343,7 +406,7 @@ mod tests {
             channels: ChanelMode::Rgb,
             colorspace: Colorspace::Linear,
         };
-        let bytes = qoi_encode(&pixels, desc.clone()).unwrap();
+        let bytes = qoi_encode(&pixels, &desc).unwrap();
         dbg!(&bytes);
         let (pixels_decoded, _desc) = qoi_decode(Cursor::new(bytes), None).unwrap();
         dbg!(&pixels_decoded);

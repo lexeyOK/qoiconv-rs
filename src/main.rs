@@ -44,8 +44,8 @@ fn main() {
             )
             .for_each(
                 |input: &PathBuf| match input.extension().and_then(OsStr::to_str) {
-                    Some("qoi") => save_from_qoi(&input),
-                    Some(_) => save_to_qoi(&input),
+                    Some("qoi") => save_from_qoi(input),
+                    Some(_) => save_to_qoi(input),
                     None => panic!("no extension"),
                 },
             );
@@ -55,16 +55,16 @@ fn main() {
 
 fn save_to_qoi(input: &Path) {
     // open and decode image
-    let image = image::open(&input).expect("your supplied image is not correct");
+    let image = image::open(input).expect("your supplied image is not correct");
     let pixels = image.to_rgba8();
 
     // create file for encoded qoi image
-    let mut file = File::create(&input.with_extension("qoi")).expect("cannot create file");
+    let mut file = File::create(input.with_extension("qoi")).expect("cannot create file");
 
     // encode qoi image and write it to file
     let bytes = qoi_encode(
         &pixels,
-        QoiDescriptor {
+        &QoiDescriptor {
             width: image.width() as usize,
             height: image.height() as usize,
             channels: ChanelMode::Rgba,
@@ -78,7 +78,7 @@ fn save_to_qoi(input: &Path) {
 
 fn save_from_qoi(input: &Path) {
     // open file
-    let file = File::open(&input).expect("cannot open file");
+    let file = File::open(input).expect("cannot open file");
     let buf = BufReader::new(file);
 
     // decode pixels
@@ -90,5 +90,5 @@ fn save_from_qoi(input: &Path) {
     RgbaImage::from_raw(desc.width as u32, desc.height as u32, pixels)
         .expect("unable to encode image")
         .save(output)
-        .unwrap_or_else(|_| panic!("unable to save image to {:?}", output));
+        .unwrap_or_else(|_| panic!("unable to save image to {output:?}"));
 }
