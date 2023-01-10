@@ -128,8 +128,7 @@ pub fn qoi_encode(
     pixels: &[u8],
     desc: &QoiDescriptor,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    // may be potential error with overflowX
-    // also should not panic probably, instead return Err.
+    //TODO: this assertion may fail due to integer overflow in rhs
     assert_eq!(
         pixels.len(),
         desc.width * desc.height * (desc.channels as usize)
