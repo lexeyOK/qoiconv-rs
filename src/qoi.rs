@@ -1,16 +1,16 @@
 //! # QOI encoder and decoder
 //!
-//! This crate contains impelementations of a [`qoi_encode`](fn.qoi_encode.html)
-//! and [`qoi_decode`](fn.qoi_decode.html) funcions
+//! This crate contains implementations of a [`qoi_encode`](fn.qoi_encode.html)
+//! and [`qoi_decode`](fn.qoi_decode.html) functions
 //! similar to [`qoi.h`](https://github.com/phoboslab/qoi) by Dominic Szablewski.
 //!
 //! ## Decode Image
 //!
 //! [`qoi_decode`](fn.qoi_decode.html) takes `impl Read` which must provide bytes
-//! of qoi file and optionaly [`ChanalMode`](struct.ChanalMode.html).
+//! of qoi file and optionally [`ChanelMode`](struct.ChanelMode.html).
 //! It will return `Vec<u8>` containing flat pixels in RGBA or RGB order and
-//! [`QoiDescriptor`](struct.QoiDescriptor) with descriptoin of an image,
-//! or `Box<dyn Error>`. You sould use `BufReader` to achive better performance.
+//! [`QoiDescriptor`](struct.QoiDescriptor) with description of an image,
+//! or `Box<dyn Error>`. You should use `BufReader` to achieve better performance.
 //!
 //! ### Example of decoding pixels from `.qoi` file:
 
@@ -27,10 +27,10 @@
 //! ```
 //!
 //! ## Encode Image
-//! [`qoi_encode`](fn.qoi_encode.html) funcitoin takes `&[u8]` of flat pixel value
+//! [`qoi_encode`](fn.qoi_encode.html) function takes `&[u8]` of flat pixel value
 //! RGB or RGBA, and [`QoiDescriptor`](struct.QoiDescriptor.html).
 //! Qoi format has hard limit on pixel count so your image must contain less than
-//! `QOI_PIXELS_MAX` pixels otherwise this funciton will panic at assertion.
+//! `QOI_PIXELS_MAX` pixels otherwise this function will panic at assertion.
 //!
 //! ### Example of encoding pixels into `.qoi` file:
 //! ```
@@ -95,13 +95,13 @@ const QOI_OP_INDEX: u8 = 0x00;
 const QOI_OP_DIFF: u8 = 0x40;
 /// Encodes luma encoding of pixels 10xxxxxx
 const QOI_OP_LUMA: u8 = 0x80;
-/// Encodes run encding of pixels 11xxxxxx
+/// Encodes run encoding of pixels 11xxxxxx
 const QOI_OP_RUN: u8 = 0xc0;
 /// Encodes RGB pixel op 11111110
 const QOI_OP_RGB: u8 = 0xfe;
-/// Encdoes RGBA pixel op 11111111
+/// Encodes RGBA pixel op 11111111
 const QOI_OP_RGBA: u8 = 0xff;
-/// Select only frst two bits 11000000
+/// Select only first two bits 11000000
 const QOI_MASK: u8 = 0xc0;
 
 /// Hash of Rgba pixel.
@@ -128,8 +128,8 @@ pub fn qoi_encode(
     pixels: &[u8],
     desc: &QoiDescriptor,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    // may be potantial error with overflowX
-    // also sould not panic probably, instead return Err.
+    // may be potential error with overflowX
+    // also should not panic probably, instead return Err.
     assert_eq!(
         pixels.len(),
         desc.width * desc.height * (desc.channels as usize)
@@ -231,7 +231,7 @@ pub fn qoi_encode(
 }
 
 /// # Decode a QOI image from `impl Read`.
-/// Will take `ChanelMode` form desciptor of file if not provided, owerwise will use provided.
+/// Will take `ChanelMode` form descriptor of file if not provided, overwise will use provided.
 pub fn qoi_decode(
     mut data: impl Read,
     channels: Option<ChanelMode>,
