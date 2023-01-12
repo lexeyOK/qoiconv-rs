@@ -112,7 +112,8 @@ const fn color_hash(pixel: QoiRGBA) -> usize {
 /// Size of header.
 const QOI_HEADER_SIZE: usize = 14;
 
-/// # Maximum safe pixel count.
+/// Maximum safe pixel count.
+///
 /// 2GB is the max file size that this implementation can safely handle. We guard
 /// against anything larger than that, assuming the worst case with 5 bytes per
 /// pixel, rounded down to a nice clean value. 400 million pixels ought to be
@@ -229,7 +230,8 @@ pub fn qoi_encode(
     Ok(bytes)
 }
 
-/// # Decode a QOI image from `impl Read`.
+/// Decode a QOI image from `impl Read`.
+///
 /// Will take `ChanelMode` form descriptor of file if not provided, overwise will use provided.
 pub fn qoi_decode(
     mut data: impl Read,
