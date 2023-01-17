@@ -38,8 +38,9 @@ fn main() {
             .par_iter()
             .progress_with(
                 ProgressBar::new(cli.input.len() as u64).with_style(
-                    ProgressStyle::with_template("[{pos}/{len}] {wide_bar} {per_sec}")
-                        .expect("incorect style"),
+                    ProgressStyle::with_template("[{pos}/{len}] [{wide_bar}] {per_sec}")
+                        .expect("incorect style")
+                        .progress_chars("=> "),
                 ),
             )
             .for_each(
