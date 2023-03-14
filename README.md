@@ -1,9 +1,19 @@
-# qoi-test
-Attempt to port [`qoi.h`](https://qoiformat.org/) to rust-lang.
-## Usage
+# qoiconv-rs
+Cli to convert between image formats and qoi. Attempt to port [`qoi.h`](https://qoiformat.org/) to rust-lang.
+
+# Usage of qoiconv-rs
+```bash
+$ cargo install qoiconv-rs
+$ qoiconv-rs -i input.png -o output.qoi # convert form image to qoi
+$ qoiconv-rs -i input.qoi -o output.png # convert from qoi to image 
+
+```
+
+# Usage
 Copy qoi.rs to your source file and add it as a mod.
 
 Example of decoding pixels from `.qoi` file:
+
 ```rust 
 use std::fs::File;
 use std::io::BufReader;
@@ -55,10 +65,3 @@ To run benches against c test program run:
 > TODO implement new benchmark to compare against c 
 
 This implementation is 2x slower then c implementation probably due to smaller buffer size of `BufReader`.
-## Usage of qoiconv-rs
-```bash
-# convert form image to qoi
-qoiconv-rs -i input.png -o output.qoi
-# convert from qoi to image 
-qoiconv-rs -i input.qoi -o output.png
-```
